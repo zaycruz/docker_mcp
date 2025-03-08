@@ -1,0 +1,5 @@
+fastmcp
+docker
+termcolor
+pytest
+requests 
