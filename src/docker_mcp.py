@@ -7,16 +7,26 @@ from termcolor import colored
 import sys
 import os
 import shlex  # Add shlex for proper command splitting
+import json
+import logging
+
+# Set up logging to stderr for MCP compatibility
+logging.basicConfig(
+    level=logging.INFO,
+    format="[DockerMCP] %(levelname)s: %(message)s",
+    stream=sys.stderr
+)
 
 # CONSTANTS
 SERVER_NAME = "DockerManager"
 
 def print_colored(message, color="green", prefix="[DockerMCP]"):
-    """Print colored messages for better visibility."""
-    print(colored(f"{prefix} {message}", color))
+    """Print colored messages to stderr for better compatibility with MCP protocol."""
+    # Use stderr only to avoid interfering with stdout JSON communication
+    print(colored(f"{prefix} {message}", color), file=sys.stderr)
 
 # Create an MCP server instance
-mcp = FastMCP(SERVER_NAME)
+mcp = FastMCP(SERVER_NAME, disable_stdout_logging=True)
 
 # When the server starts, check if Docker is available
 try:
@@ -28,9 +38,11 @@ try:
     print_colored(f"Docker version: {docker_check.stdout.strip()}", "cyan")
 except subprocess.SubprocessError:
     print_colored("Docker is not available. Please make sure Docker is installed and running.", "red")
+    logging.error("Docker is not available. Please make sure Docker is installed and running.")
     sys.exit(1)
 except Exception as e:
     print_colored(f"Error checking Docker: {str(e)}", "red")
+    logging.error(f"Error checking Docker: {str(e)}")
     sys.exit(1)
 
 @mcp.tool()
@@ -522,3 +534,15 @@ def list_containers(show_all: bool = True) -> str:
         error_msg = f"Unexpected error: {str(e)}"
         print_colored(error_msg, "red")
         return error_msg 
+
+# Main entry point for MCP server
+if __name__ == "__main__":
+    print_colored("Starting MCP Docker Manager server...", "green")
+    try:
+        # This starts the MCP server
+        mcp.run()
+    except Exception as e:
+        error_message = f"Error starting MCP server: {str(e)}"
+        logging.error(error_message)
+        print(error_message, file=sys.stderr)
+        sys.exit(1) 
