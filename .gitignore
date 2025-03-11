@@ -114,6 +114,7 @@ dmypy.json
 
 # Docker specific
 .docker/
+docker-compose.override.yml
 
 # VSCode
 .vscode/
@@ -128,3 +129,22 @@ dmypy.json
 *~
 *.swp
 *.swo
+
+# Cursor rules
+.cursorrules
+
+# MCP server specific
+.mcp_cache/
+.fastmcp/
+mcp_logs/
+
+# Local configuration files
+config.local.json
+*.local.yaml
+*.local.yml
+*.local.env
+
+# Temporary files
+*.tmp
+tmp/
+temp/
