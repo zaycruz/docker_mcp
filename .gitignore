@@ -148,3 +148,6 @@ config.local.json
 *.tmp
 tmp/
 temp/
+
+# Add this to your .gitignore file
+venc/
