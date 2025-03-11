@@ -7,6 +7,8 @@ A powerful Model Context Protocol (MCP) server that executes code in isolated Do
 - **Isolated Code Execution**: Run code in Docker containers separated from your main system
 - **Multi-language Support**: Execute code in any language with a Docker image
 - **Complex Script Support**: Run both simple commands and complete multi-line scripts
+- **Package Management**: Install dependencies using pip, npm, apt-get, or apk
+- **Container Management**: Create, list, and clean up Docker containers easily
 - **Robust Error Handling**: Graceful timeout management and fallback mechanisms
 - **Colorful Output**: Clear, color-coded console feedback
 
@@ -51,15 +53,31 @@ The MCP Inspector interface will open in your browser at http://localhost:5173.
 
 The Docker MCP server provides the following tools:
 
-#### 1. Create Container
+#### 1. List Containers
 
-Creates and starts a Docker container:
+Lists all Docker containers and their details:
 
 - **Parameters**:
-  - `image`: The Docker image to use (e.g., "python:3.9-slim")
-  - `container_name`: A unique name for the container
+  - `show_all`: (Optional) Whether to show all containers including stopped ones (default: True)
 
-#### 2. Execute Code
+#### 2. Create Container
+
+Creates and starts a Docker container with optional dependencies:
+
+- **Parameters**:
+  - `image`: The Docker image to use (e.g., "python:3.9-slim", "node:16")
+  - `container_name`: A unique name for the container
+  - `dependencies`: (Optional) Space-separated list of packages to install (e.g., "numpy pandas", "express lodash")
+
+#### 3. Add Dependencies
+
+Installs additional packages in an existing Docker container:
+
+- **Parameters**:
+  - `container_name`: The name of the target container
+  - `dependencies`: Space-separated list of packages to install
+
+#### 4. Execute Code
 
 Executes a command inside a running Docker container:
 
@@ -67,7 +85,7 @@ Executes a command inside a running Docker container:
   - `container_name`: The name of the target container
   - `command`: The command to execute inside the container
 
-#### 3. Execute Python Script
+#### 5. Execute Python Script
 
 Executes a multi-line Python script inside a running Docker container:
 
@@ -76,35 +94,120 @@ Executes a multi-line Python script inside a running Docker container:
   - `script_content`: The full Python script content
   - `script_args`: Optional arguments to pass to the script
 
-#### 4. Cleanup Container
+#### 6. Cleanup Container
 
 Stops and removes a Docker container:
 
 - **Parameters**:
   - `container_name`: The name of the container to clean up
 
-### Example: Running a Python Script
+### Examples
+
+#### Basic Workflow Example
 
 ```python
-# 1. Create a container
-create_container(image="python:3.9-slim", container_name="python-test")
+# 1. List existing containers to see what's already running
+list_containers()
+
+# 2. Create a new container
+create_container(
+    image="python:3.9-slim", 
+    container_name="python-example", 
+    dependencies="numpy pandas"
+)
+
+# 3. Execute a command in the container
+execute_code(
+    container_name="python-example", 
+    command="python -c 'import numpy as np; print(\"NumPy version:\", np.__version__)'"
+)
+
+# 4. Add more dependencies later
+add_dependencies(
+    container_name="python-example", 
+    dependencies="matplotlib scikit-learn"
+)
+
+# 5. List containers again to confirm status
+list_containers(show_all=False)  # Only show running containers
+
+# 6. Clean up when done
+cleanup_container(container_name="python-example")
+```
+
+#### Python Data Analysis Example
+
+```python
+# 1. Create a container with dependencies
+create_container(
+    image="python:3.9-slim", 
+    container_name="python-test", 
+    dependencies="numpy pandas matplotlib"
+)
 
 # 2. Execute a Python script
 script = """
-def fibonacci(n):
-    sequence = [0, 1]
-    for i in range(2, n):
-        sequence.append(sequence[i-1] + sequence[i-2])
-    return sequence
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
-result = fibonacci(10)
-print(f"Fibonacci sequence: {result}")
+# Create some data
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100)
+})
+
+print(f"Data shape: {data.shape}")
+print(f"Data correlation: {data.corr().iloc[0,1]:.4f}")
 """
 execute_python_script(container_name="python-test", script_content=script)
 
-# 3. Clean up when done
+# 3. Add additional dependencies later if needed
+add_dependencies(container_name="python-test", dependencies="scikit-learn")
+
+# 4. Verify container is running
+list_containers(show_all=False)
+
+# 5. Clean up when done
 cleanup_container(container_name="python-test")
 ```
+
+#### Node.js Example
+
+```python
+# 1. Check for existing Node.js containers
+list_containers()
+
+# 2. Create a Node.js container
+create_container(
+    image="node:16", 
+    container_name="node-test", 
+    dependencies="express axios"
+)
+
+# 3. Execute a Node.js script
+execute_code(
+    container_name="node-test", 
+    command="node -e \"console.log('Node.js version: ' + process.version); console.log('Express installed: ' + require.resolve('express'));\""
+)
+
+# 4. Add more dependencies
+add_dependencies(container_name="node-test", dependencies="lodash moment")
+
+# 5. Clean up when done
+cleanup_container(container_name="node-test")
+```
+
+## Package Manager Support
+
+The Docker MCP server automatically detects and uses the appropriate package manager:
+
+- **Python containers**: Uses `pip`
+- **Node.js containers**: Uses `npm`
+- **Debian/Ubuntu containers**: Uses `apt-get`
+- **Alpine containers**: Uses `apk`
+
+For containers where the package manager isn't obvious from the image name, the server attempts to detect available package managers.
 
 ## Integrating with Claude and Other LLMs
 
@@ -119,6 +222,8 @@ fastmcp install src/docker_mcp.py
 - **Port Already in Use**: If you see "Address already in use" errors, ensure no other MCP Inspector instances are running.
 - **Docker Connection Issues**: Verify that Docker is running with `docker --version`.
 - **Container Timeouts**: The server includes fallback mechanisms for containers that don't respond within expected timeframes.
+- **Package Installation Failures**: Check that the package name is correct for the specified package manager.
+- **No Containers Found**: If list_containers shows no results, Docker might not have any containers created yet.
 
 ## Security Considerations
 
