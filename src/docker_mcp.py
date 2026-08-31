@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 from termcolor import colored
 import sys
 import os
+import re
 import shlex  # Add shlex for proper command splitting
 import json
 import logging
@@ -24,6 +25,36 @@ def print_colored(message, color="green", prefix="[DockerMCP]"):
     """Print colored messages to stderr for better compatibility with MCP protocol."""
     # Use stderr only to avoid interfering with stdout JSON communication
     print(colored(f"{prefix} {message}", color), file=sys.stderr)
+
+
+# --- Security hardening: token allowlist (CWE-78 / Docker CLI flag injection) ---
+# The tool args (dependencies, image, container_name, script_args) are echoed into
+# shell command strings via `sh -c` / `bash -c` and into docker argv. Without
+# validation a caller can inject `; <cmd>` (command injection) or a `-`-prefixed
+# flag (Docker CLI option injection, e.g. --volume=/:/host). We reject both.
+_PKG_NAME_RE = re.compile(r"^[A-Za-z0-9._][A-Za-z0-9._+:/=-]*$")
+
+def _safe_token(value, what="dependency"):
+    """Reject values that could alter shell/docker parsing.
+    Raises ValueError if the value is unsafe (shell metachars, -prefix flags).
+    Accepts space-separated package lists; each token must be a plausible package
+    or image name. NOTE: pip range operators (>=, <=, <, >, ,) are intentionally
+    not permitted — the disclosed usage is simple package lists (the README example
+    is 'numpy pandas matplotlib'); if version ranges are needed, the maintainer
+    should switch these tools to discrete argv (no shell) instead of loosening this."""
+    if value is None:
+        return False
+    s = str(value)
+    if s.startswith("-"):
+        raise ValueError(f"unsafe {what} (flag-style) value: {s!r}")
+    # shell metacharacters / command separators / glob / quote breakers
+    if re.search(r"[;&|<>`$(){}!\\\\\"'*]", s):
+        raise ValueError(f"unsafe {what} (shell metacharacter) value: {s!r}")
+    # each whitespace-separated token must be a plausible package/image name
+    for tok in s.split():
+        if not _PKG_NAME_RE.fullmatch(tok):
+            raise ValueError(f"unsafe {what} token: {tok!r}")
+    return True
 
 # Create an MCP server instance
 mcp = FastMCP(SERVER_NAME, disable_stdout_logging=True)
@@ -62,6 +93,11 @@ def create_container(image: str, container_name: str, dependencies: str = "") ->
     print_colored(f"Creating container with name '{container_name}' from image '{image}'...")
     
     try:
+        # Security hardening: reject flag-style / shell-meta inputs (CWE-78, Docker flag injection)
+        _safe_token(image, "image")
+        _safe_token(container_name, "container_name")
+        if dependencies:
+            _safe_token(dependencies, "dependencies")
         # Start the container in detached mode with an infinite sleep to keep it running.
         result = subprocess.run(
             ["docker", "run", "-d", "--name", container_name, image, "sleep", "infinity"],
@@ -368,6 +404,9 @@ def add_dependencies(container_name: str, dependencies: str) -> str:
     print_colored(f"Adding dependencies to container '{container_name}': {dependencies}")
     
     try:
+        # Security hardening: reject flag-style / shell-meta inputs (CWE-78)
+        _safe_token(container_name, "container_name")
+        _safe_token(dependencies, "dependencies")
         # Check if container exists and is running
         container_check = subprocess.run(
             ["docker", "container", "inspect", "-f", "{{.State.Running}}", container_name],
