@@ -50,7 +50,11 @@ def _safe_token(value, what="dependency"):
     # shell metacharacters / command separators / glob / quote breakers
     if re.search(r"[;&|<>`$(){}!\\\\\"'*]", s):
         raise ValueError(f"unsafe {what} (shell metacharacter) value: {s!r}")
-    # each whitespace-separated token must be a plausible package/image name
+    # non-space whitespace (\n, \r, \t, ...) is a shell statement separator too;
+    # str.split() would silently hide it inside an otherwise-valid token list
+    if re.search(r"\s", s.replace(" ", "")):
+        raise ValueError(f"unsafe {what} (non-space whitespace) value: {s!r}")
+    # each space-separated token must be a plausible package/image name
     for tok in s.split():
         if not _PKG_NAME_RE.fullmatch(tok):
             raise ValueError(f"unsafe {what} token: {tok!r}")
