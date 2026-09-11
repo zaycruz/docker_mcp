@@ -93,6 +93,8 @@ ENV/
 env.bak/
 venv.bak/
 docker_mcp_env/
+# Legacy local virtual environment (application code lives in src/)
+/source/
 
 # Spyder project settings
 .spyderproject

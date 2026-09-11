@@ -22,8 +22,8 @@ A powerful Model Context Protocol (MCP) server that executes code in isolated Do
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/docker_mcp_server.git
-   cd docker_mcp_server
+   git clone https://github.com/zaycruz/docker_mcp.git
+   cd docker_mcp
    ```
 
 2. Create a virtual environment:
@@ -239,4 +239,4 @@ This server executes code in Docker containers, which provides isolation from th
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.
